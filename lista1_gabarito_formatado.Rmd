@@ -1,0 +1,256 @@
+---
+title: "lista1_gabarito"
+author: "Gabriel_Mardegan"
+date: "2024-08-22"
+output:
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage[margin=1in]{geometry}
+  - \usepackage{setspace}
+  - \onehalfspacing
+---
+
+# Métodos quantitativos - regressão linear
+
+## Lista 1 - revisão estatística e introdução ao uso do R [gabarito]
+
+## monitor: Gabriel Rodrigues Mardegan
+
+### 1. **Importando a base de dados**
+
+```{r pacotes, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+library(dplyr)
+library(tidyverse)
+library(devtools)
+library(ribge)
+```
+
+```{r importando base, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#criando objeto para base de dados
+pop2020 <- populacao_municipios(2020)
+```
+
+```{r numero observacoes colunas, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='hide'}
+
+#criando objeto para número de linhas
+observacoes_pop <- nrow(pop2020)
+
+#criando objeto para número de colunas
+variaveis_pop <- ncol(pop2020)
+
+#outra possibilidade é usar a função "glimpse", do pacote "dplyr", que retorna um panorama da base de dados, apresentando a quantidade de linhas e colunas.
+```
+
+
+1.1) A unidade de análise do banco de dados são os municípios brasileiros no ano de 2020. O número de observações (municípios) listadas é: `r observacoes_pop`.
+
+1.2) A base de dados importada possui `r variaveis_pop` variáveis.
+
+1.3) [pergunta em aberto] As colunas/variáveis "populacao_str" e "populacao" apresentam os mesmos números para a população dos municípios. No entanto, na primeira os valores estão no tipo "character", e na segunda no tipo "numeric". Isso é possível verificar posicionando o cursor em cima do nome da coluna, o que também fornece informação sobre a variação dos valores para essa variável. Em relação ao conteúdo da base de dados, é curioso notar como os municípios tem uma variação considerável em relação à população. Uma tabela como essa permite entender quantos municípios brasileiros (porcentagem) são de pequeno, médio ou grande porte, o que direciona formulação e execução de políticas públicas.
+
+```{r data wrangling, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#selecionando variáveis de interesse
+pop2020 <- pop2020 %>%
+  select(uf, nome_munic, populacao)
+
+#renomeando variável "municipio"
+pop2020 <- pop2020 %>%
+  rename(municipio = nome_munic)
+
+#transformando caracteres em minúsculo
+pop2020 <- pop2020 %>%
+  mutate(municipio=tolower(municipio))
+```
+
+### 2. **Analisando o estado de São Paulo**
+
+```{r municipios paulistas, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#filtrando apenas municípios paulistas
+pop_sp2020 <- pop2020 %>%
+  filter(uf == "SP")
+
+#criando objeto para número de municípios paulistas
+observacoes_sp <- nrow(pop_sp2020)
+```
+
+
+2.1) De acordo com a base de dados do IBGE para o ano de 2020, o estado de São Paulo possui `r observacoes_sp` municípios.
+
+```{r menor municipio, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#criando objeto para menor população paulista
+menor_sp_pop <- min(pop_sp2020$populacao)
+
+#encontrando índice para população de menor município paulista
+menor_sp_indice <- which.min(pop_sp2020$populacao)
+
+#retornando o nome do município com a menor população
+menor_sp_nome <- pop_sp2020$municipio[menor_sp_indice]
+
+```
+
+2.2) O menor município do estado no ano de 2020 foi `r menor_sp_nome`, com uma população de `r menor_sp_pop` habitantes.
+
+```{r outra possibilidade, echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+#outro caminho possível é ordenar através da função "arrange", e depois selecionar a primeira linha através da função "slice"
+#dica do professor Galdino
+
+pop_sp2020 %>%
+  arrange(populacao) %>%
+  slice(1)
+
+```
+
+```{r terceira possibilidade, echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+#dica do professor Galdino
+#uma terceira estratégia possível é utilizar a função filter da seguinte maneira:
+
+pop_sp2020 %>%
+  filter(populacao == min(populacao))
+
+#melhor ainda seria usar "all.equal" em vez de "==" para evitar problema de comparação com ponto flutuante (mencionado brevemente em aula)
+
+```
+
+```{r sugestao de aluno, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='hide'}
+
+#sugestão de aluno Augusto Piccinini, pelo grupo do Discord
+
+pop_sp2020[which.min(pop_sp2020$populacao),]
+```
+
+
+```{r municipios com milhao, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#filtrando municípios paulistas com mais de um milhão de habitantes
+pop_sp_milhao <- pop_sp2020 %>%
+  filter(populacao>1000000)
+```
+
+
+2.3) Os municípios paulistas com população superior a um milhão de habitantes são: Campinas (1.213.792 habitantes), Guarulhos (1.392.121 habitantes) e São Paulo (12.325.232 habitantes).
+
+### 3. **Estatística descritiva dos dados**
+
+```{r estatisticas, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#calculando a média da população
+df_estat_sp <- pop_sp2020 %>%
+  summarise(media = mean(populacao),
+            mediana = median(populacao),
+            desvio = sd(populacao),
+            variancia = var(populacao))
+#a função summarise resume os dados de acordo com as operações solicitadas
+
+#extra: construindo uma tabela através do pacote "knitr"
+
+#ativando biblioteca "knitr"
+library(knitr)
+
+kable(df_estat_sp, caption = "estatisticas descritivas da população paulista 2020")
+```
+
+
+### 4. Trabalhando com gráficos
+
+4.1)
+
+```{r construindo grafico, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#ativando o pacote "ggplot2"
+library("ggplot2")
+
+#código para gráfico de densidade dos municípios paulistas
+pop_sp2020 %>%
+  ggplot(aes(x=populacao)) + geom_density(colour = "blue", fill = "blue", alpha = 0.2)
+
+```
+
+4.2) O gráfico de densidade criado revela que a maioria dos municípios paulistas estão concentrados na região próxima a zero. A existência de um município com uma população muito maior que o restante (valor discrepante extremo), a capital de São Paulo, faz com que a cauda direita se alongue até o ponto de 12 milhões de habitantes, dificultando a visualização da distribuição dos municípios.
+
+4.3) A partir da observação do gráfico, constata-se que a mediana é uma medida mais adequada da tendência central da população, uma vez que a distribuição é muito assimétrica.
+
+
+### 5. Gráfico de densidade de pequenos municípios
+
+5.1)
+
+```{r pequenos municipios, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+#gerando gráfico de densidade para municípios paulistas com menos de 50 mil habitantes
+
+pop_sp2020 %>%
+  filter(populacao < 50000) %>%
+  ggplot() +
+  geom_density(aes(x = populacao), colour = "green", fill = "green", alpha = 0.1)
+```
+
+
+```{r porcentagem municipios pequenos, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+#criando banco de dados com municípios paulistas menores de 50mil
+munic_sp_50 <- pop_sp2020 %>%
+  filter(populacao < 50000)
+
+#criando objeto para número de observações
+sp_50 <- nrow(munic_sp_50)
+
+#calculando porcentagem dos municípios < 50mil
+porcent_sp50 <- (sp_50/observacoes_sp)*100
+```
+
+5.2) O estado de São Paulo possui `r sp_50` municípios com menos de 50.000 habitantes (para o ano de 2020). Isso representa `r porcent_sp50`% dos municípios paulistas.
+
+5.3) Nesse novo gráfico, as observações/municípios não estão mais concentrados em apenas uma parte do gráfico. O gráfico ainda é assimétrico, mas bem menos que o anterior.
+
+
+### 6. Trabalhando com escala logarítmica
+
+6.1)
+
+```{r grafico log, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+#construindo gráfico com população em escala log
+pop_sp2020 %>%
+  mutate(populacao = log(populacao)) %>%   #transformando pop em escala log
+  ggplot() +
+  geom_density(aes(x = populacao), colour = "orange", fill = "yellow", alpha = 0.2) +    #gerando gráfico de densidade
+  ggtitle("Grafico de densidade da populacao (em log)")  
+```
+
+6.2) Em comparação com o gráfico do exercício 4.1, este gráfico tem uma aparência muito mais simétrica, e as observações não estão concentradas em apenas um lado do gráfico. Apesar disso, a cauda direita ainda se estende, produzindo uma assimetria, mas muito diferente do gráfico anterior. Como visto em aula, transformar dados em escala logarítmica permite melhor visualização de dados com ordem de grandeza diferentes (10, 100, 1000...).
+
+### Médias da população por estado
+
+7.1)
+
+```{r media por estados, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
+
+media_estados <- pop2020 %>%  #criando novo objeto
+  group_by(uf) %>%   #agrupando por estados ("uf")
+  summarise(pop_mean = mean(populacao))   #calculando médias populacionais
+
+#extra: gerando tabela
+
+kable(media_estados, caption = "medias populacionais dos municipios por estado")
+```
+
+
+7.2)
+
+```{r ordem crescente, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+
+#ordenando tabela por ordem crescente e, no mesmo código, gero nova tabela
+media_estados %>%
+  arrange(pop_mean) %>%
+  kable(caption = "tabela ordenada de médias dos municípios por estado")
+
+```
+
+Tocantins possui a menor média, e Rio de Janeiro tem a maior média (desconsiderando DF).

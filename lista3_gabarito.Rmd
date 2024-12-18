@@ -1,0 +1,335 @@
+---
+title: "lista3_gabarito"
+author: "Gabriel_Mardegan"
+date: "2024-09-30"
+output:
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage[margin=1in]{geometry}
+  - \usepackage{setspace}
+  - \onehalfspacing
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(    
+  echo = FALSE,
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE)
+#percebam que neste script eu configurei um padrão para todos os chunks
+#ao invés de configurar cada um deles separadamente
+```
+
+# Métodos quantitativos - regressão linear
+
+## Lista 3 - propriedades da esperança [gabarito]
+
+## monitor: Gabriel Rodrigues Mardegan
+
+\vspace{1cm}
+
+### 1. **Importando a base de dados PNADc**
+
+```{r pacotes}
+library(dplyr)
+library(tidyverse)
+library(tidylog)
+```
+
+```{r importando base}
+#instale o pacote da PNAD
+#install.packages("PNADcIBGE")
+
+#ative o pacote
+library(PNADcIBGE)
+
+#importe os dados de interesse ("get_pnadc") e atribua a um objeto (dados_pnad)
+dados_pnad <- get_pnadc(
+  year = 2023,   #ano da amostra
+  quarter = 4,   #semestre da amostra
+  design = FALSE,   #ignorar plano amostral
+  savedir = tempdir()   #define em qual diretório os dados serão armazenados
+)
+```
+
+A PNAD Contínua (Pesquisa Nacional por Amostra de Domicílios Contínua) é uma pesquisa realizada pelo IBGE (Instituto Brasileiro de Geografia e Estatística) que tem como objetivo principal fornecer informações sobre o mercado de trabalho, assim como características socioeconômicas da população brasileira, de forma contínua e trimestral. A pesquisa investiga temas como emprego, desemprego, renda, migração, educação, e outros aspectos, permitindo análises detalhadas sobre a evolução das condições de vida e trabalho no Brasil ao longo do tempo. Sua unidade de investigação é o domicílio (por isso o nome). Como o próprio nome já indica, trata-se de uma AMOSTRA, e por isso seus dados devem ser tratados enquanto tal. No link a seguir, vocês podem conferir a planilha do dicionário das variáveis utilizadas na PNADc de 2022:
+
+[link](https://view.officeapps.live.com/op/view.aspx?src=https%3A%2F%2Fftp.ibge.gov.br%2FTrabalho_e_Rendimento%2FPesquisa_Nacional_por_Amostra_de_Domicilios_continua%2FAnual%2FMicrodados%2FVisita%2FVisita_1%2FDocumentacao%2Fdicionario_PNADC_microdados_2022_visita1_20231129.xls&wdOrigin=BROWSELINK)
+
+\vspace{1cm}
+
+### 2. **Limpando a base de dados**
+
+```{r limpando a base, echo=TRUE}
+#trata-se de um extenso banco de dados
+#mais de 470mil observações para 423 variáveis
+#para esta lista, vamos selecionar 6 variáveis:
+#ano, trimestre, UF, sexo, renda e horas trabalhadas
+
+#ao atribuir uma operação a um objeto de mesmo nome do dataframe anterior,
+#você o substitui/atualiza em seu environment
+dados_pnad <-
+  dados_pnad %>%
+  select(Ano, Trimestre, UF, V2007, VD4020, VD4035)
+
+#renomeando as variáveis
+dados_pnad <-
+  dados_pnad %>%
+  rename(
+    sexo = V2007,
+    renda = VD4020,
+    horas_trabalhadas = VD4035
+  )
+
+#utilize as funções "glimpse()", "View()" ou "head()"
+#para inspecionar seu banco de dados
+
+head(dados_pnad)
+```
+
+\vspace{1cm}
+
+### 3. **Estatística descritiva dos dados**
+
+3.1) A renda média
+
+```{r renda média}
+library(knitr)  #pacote para gerar tabela com função "kable"
+
+dados_pnad %>%
+  summarise(renda_media = mean(renda, na.rm = TRUE)) %>%
+  kable()
+```
+
+3.2) A variância da renda
+
+```{r variancia renda}
+dados_pnad %>%
+  summarise(renda_variancia = var(renda, na.rm = TRUE)) %>%
+  kable()
+```
+
+3.3) A renda média dos homens e das mulheres
+
+```{r renda por sexo}
+dados_pnad %>%
+  group_by(sexo) %>%
+  summarise(renda_media = mean(renda, na.rm = TRUE)) %>%
+  kable()
+```
+
+3.4) A renda média em cada estado brasileiro
+
+```{r renda por estado}
+dados_pnad %>% group_by(UF) %>%
+  summarise(renda_media = mean(renda, na.rm = TRUE)) %>%
+  kable()
+```
+
+3.5) A covariância entre a renda e o número de horas trabalhadas
+
+```{r covariancia renda e horas trabalhadas}
+dados_pnad %>%
+  summarise(cov_renda_horas = cov(renda, horas_trabalhadas, use = "complete.obs")) %>% kable()
+
+#outra opção de código abaixo:
+#cov(dados_pnad$renda, dados_pnad$horas_trabalhadas, use = "complete.obs")
+```
+
+\vspace{1cm}
+
+### 4.**Linearidade da esperança**
+
+```{r linearidade 1}
+#primeira parte da equação
+dados_pnad %>%
+  mutate(renda_2 = renda*2,       #multiplicando cada observação pela constante
+         horas_3 = horas_trabalhadas*3,
+         horas_renda = renda_2 + horas_3) %>%  #calculando dentro dos colchetes
+  summarise(renda_horas_media_1 = mean(horas_renda, na.rm = TRUE)) %>%
+  kable()
+```
+
+```{r linearidade 2}
+#segunda parte da equação
+dados_pnad %>%
+  summarise(media_renda = mean(renda, na.rm = TRUE),
+            media_horas = mean(horas_trabalhadas, na.rm = TRUE),
+            renda_horas_media_2 = 2*media_renda + 3*media_horas) %>%
+  kable()
+```
+
+
+
+```{r linearidade 3}
+#é possível articular todas as operações em um código único:
+
+dados_pnad %>%
+  mutate(renda_2 = 2*renda,
+        horas_3 = 3*horas_trabalhadas,
+        renda_horas = renda_2 + horas_3, na.rm = TRUE) %>%
+ summarise(renda_horas_media_1 = mean(renda_horas, na.rm = TRUE),
+           media_renda = mean(renda, na.rm = TRUE),
+           media_horas = mean(horas_trabalhadas, na.rm = TRUE),
+           renda_horas_media_2 = 2*media_renda + 3*media_horas) %>%
+  kable()
+```
+
+Os dois lados da equação chegaram no mesmo resultado (não precisamente iguais, devido a arrendondamento). Os cálculos do exercício demonstraram a **propriedade da linearidade da esperança matemática**. A esperança de uma combinação linear de variáveis aleatórias é igual à combinação linear das esperanças dessas variáveis. De maneira simplificada, a esperança da soma (das variáveis), é igual à soma das esperanças. Entretanto, é importante fazer uma ressalva: escolhemos duas variáveis que possuem grandezas que não são comparáveis (renda e horas trabalhadas), o que dificulta a interpretação dos resultados em termos práticos.
+
+
+\vspace{1cm}
+
+### 5. **Esperança condicional**
+
+
+```{r esperanca condicional 1}
+media_51 <- dados_pnad %>%
+  filter(horas_trabalhadas >= 10 & horas_trabalhadas <= 20) %>%
+  summarise(media_renda_51 = mean(renda, na.rm = TRUE)) %>%
+  pull(media_renda_51) %>%   #função para extrair resultado e salvá-lo no objeto
+  round(2)   #função para estabelecer número de casas decimais no resultado
+```
+
+5.1) No ano de 2023, com os dados do PNAD referentes ao quarto semestre, considerando os entrevistados que trabalharam entre 10 e 20 horas semanais, a renda foi de `r media_51` reais (perceba, através do arquivo script, que utilizei aqui um código "in-line" para escrever o resultado da operação diretamente em meu texto).
+
+```{r esperanca condicional 2}
+media_52 <- dados_pnad %>%
+  filter(horas_trabalhadas <= 20) %>%
+  summarise(media_renda_52 = mean(renda, na.rm = TRUE)) %>%
+  pull(media_renda_52) %>%   #função para extrair resultado e salvá-lo no objeto
+  round(2)   #função para estabelecer número de casas decimais no resultado
+```
+
+5.2) No ano de 2023, com os dados do PNAD referentes ao quarto semestre, considerando os entrevistados que trabalharam 20 horas semanais ou menos, a renda foi de `r media_52` reais. É curioso que, ao abarcar entrevistados que trabalharam menos de 10 horas semanais, a média de rendimentos tenha aumentado em relação ao exercício anterior. Esse resultado suscita uma investigação para compreender quais fatores influiram nessa diferença entre quem trabalha a partir de 10 horas semanais, e quem trabalha menos de 10 horas semanais.
+
+\vspace{1cm}
+
+### 6. **Probabilidade condicional**
+
+```{r filtrando observacoes, echo=TRUE}
+dados_pnad_6 <- dados_pnad %>%
+  filter(renda <= 10000)
+#o número de observações caiu mais da metade, de 473mil para 193mil
+```
+
+6.1) Gráfico de densidade
+
+```{r grafico densidade}
+library(ggplot2)
+
+dados_pnad_6 %>%
+  ggplot() +
+  geom_density(aes(x=renda), colour = "black", fill = "yellow", alpha = 0.2) +
+  ggtitle("Gráfico de densidade de renda")
+```
+
+Percebe-se que a maioria dos respondentes afirmou ter rendimento próximo de 1250 reais no quarto semestre de 2023. Para subsidiar a análise, o salário mínimo em 2023 foi de R\$1320,00 mensais. Na faixa de rendimentos entre R\$5000,00 e R\$10000, há uma minoria de respondentes. Esse gráfico está em consonância com as análises socioeconômicas acerca da grande parcela da população que ganha até 2 salários mínimos.
+
+
+```{r contando observacoes}
+#respondentes com rendimento até 10000
+renda_total <- dados_pnad %>%
+  filter(renda <= 10000) %>%
+  count()
+
+#respondentes com rendimento entre 1000 e 2000
+faixa_renda <- dados_pnad %>%
+  filter(renda > 1000 & renda < 2000) %>%
+  count()  #a função count() conta as observações que atendem à condição
+```
+
+```{r porcentagem e probabilidade}
+probabilidade <- (faixa_renda/renda_total)*100
+probabilidade <- round(probabilidade, 2)
+```
+
+6.2) A probabilidade de um respondente escolhido aleatoriamente na amostra ter rendimento maior que 1000 e menor que 2000 reais é de `r probabilidade`%.
+
+6.3) Gráfico de densidade da renda condicional ao número de horas trabalhadas
+
+```{r grafico de densidade condicional}
+dados_pnad_6 %>%
+  filter(horas_trabalhadas <= 20) %>%
+  ggplot() +
+  geom_density(aes(x=renda), colour = "black", fill = "yellow", alpha = 0.2) +
+  ggtitle("Grafico de densidade de renda condicional as horas trabalhadas")
+```
+
+Ao comparar o gráfico criado para a questão 6.3 com o gráfico gerado na questão 6.1, percebe-se que o número de respondentes que tem rendimento próximo a um salário mínimo caiu em relação à densidade de respondentes que possuem rendimento próximo a zero. Uma hipótese para esse resultado, é que, ao filtrar entrevistados que trabalharam no máximo vinte horas semanais, boa parte daqueles registrados com 1sm ficaram de fora dos dados, e boa parte dos respondentes restantes tenham trabalhos informais, com menor rendimento. Essa hipótese suscita novas investigações de nossos dados, como por exemplo, verificar as variáveis referentes aos tipos de ocupação, com foco na proporção entre trabalhadores formais vs. informais.
+
+```{r probabilidade condicional}
+#respondentes com até 20 horas trabalhadas
+renda_total_64 <- dados_pnad_6 %>%
+  filter(horas_trabalhadas <= 20) %>%
+  count()
+
+#respondentes com renda entre 1000 e 2000, com até 20 horas trabalhadas
+faixa_renda_64 <- dados_pnad_6 %>%
+  filter(renda > 1000 & renda < 2000 & horas_trabalhadas <= 20) %>%
+  count()
+
+probabilidade_64 <- (faixa_renda_64/renda_total_64)*100
+probabilidade_64 <- round(probabilidade_64, 2)
+```
+
+6.4) Considerando respondentes que trabalharam até 20 horas semanais, a probabilidade de ser alguém com faixa de renda maior que 1000 e menor que 2000 reais, é de `r probabilidade_64`%.
+
+\vspace{1cm}
+
+### 7. **Novamente as propriedades da esperança** (questão extra/optativa)
+
+7.1)
+
+```{r linearidade 71, echo = TRUE}
+dados_pnad71 <- dados_pnad %>%
+  mutate(renda1 = renda*7,
+         renda2 = mean(renda, na.rm = TRUE)*7)
+
+dados_pnad71 %>% summarise(esperanca71 = mean(renda1-renda2, na.rm = TRUE)) %>% kable()
+```
+
+A média das diferenças entre os valores das observações individuais Xi e a média de X é zero, e essa relação se mantém quando multiplicamos ambos os valores por uma mesma constante (7), conforme aponta a equação.
+
+7.2)
+
+```{r linearidade 72}
+dados_pnad_72 <- dados_pnad %>%
+  summarise(renda1 = mean((renda - mean(renda, na.rm = TRUE))^2, na.rm= TRUE),
+         renda2 = mean(renda^2, na.rm = TRUE)-(mean(renda, na.rm = TRUE)^2))
+
+dados_pnad_72
+```
+
+```{r resolucao alt, echo = TRUE}
+#resolvendo de maneira desagregada (passo a passo)
+
+#primeira parte da equação
+dados_pnad_73 <- dados_pnad %>%
+  mutate(renda1 = (renda - mean(renda, na.rm = TRUE))^2) #dentro colchetes
+#a esperança da primeira parte
+dados_pnad_73 <- dados_pnad_73 %>%
+  mutate(renda1 = mean(renda1, na.rm = TRUE))
+
+#segunda parte da equação, primeira esperança
+dados_pnad_73 <- dados_pnad_73 %>%
+  mutate(renda2 = mean(renda^2, na.rm = TRUE))
+
+#segunda parte da equação, segunda esperança
+dados_pnad_73 <- dados_pnad_73 %>%
+  mutate(renda3 = mean(renda, na.rm = TRUE)^2)
+
+#resolvendo a segunda parte da equação
+dados_pnad_73 <- dados_pnad_73 %>%
+  mutate(renda4 = renda2 - renda3)
+
+#verificando a equação
+dados_pnad_73 %>%
+  summarise(final = mean(renda1 - renda4, na.rm = TRUE))%>%
+  kable()
+```
+Note que a primeira parte da equação é a definição de variância: subtrai-se a média da variável de cada valor individualmente, e eleva-se ao quadrado antes de calcular a média. A segunda parte da equação é uma maneira alternativa de calcular a variância.
+
+
+Créditos: Esta lista foi elaborada a partir da lista do ano anterior (2023), confeccionada por Davi Ferreira Veronese, a quem agradeço a gentileza.

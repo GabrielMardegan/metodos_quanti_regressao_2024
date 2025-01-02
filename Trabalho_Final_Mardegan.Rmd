@@ -1,0 +1,535 @@
+---
+title: "Trabalho_Final_Mardegan"
+author: "Gabriel_Mardegan"
+date: "2023-12-09"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+# Trabalho final da disciplina "Métodos Quantitativos de Pesquisa II"
+
+## Gabriel Rodrigues Mardegan (no USP: 8939269)
+
+## Professor Manoel Galdino
+
+### *Replicação do estudo "City size and public service access: evidence from Brazil and Indonesia" (POST; KUIPERS, 2023)* [link](https://www.cambridge.org/core/journals/perspectives-on-politics/article/city-size-and-public-service-access-evidence-from-brazil-and-indonesia/9B7C66A1E6DBD54CCCAC4A8DD703F71A)
+
+### **INTRODUÇÃO**
+
+O artigo selecionado como referência para o trabalho final da disciplina “Métodos Quantitativos de Pesquisa II”, intitulado “City size and public service access: evidence from Brazil and Indonesia” (POST; KUIPERS, 2023), tem como questão central avaliar como o tamanho populacional dos municípios está relacionado à oferta de serviços públicos (em termos de provisão e não de qualidade). Os autores questionam certa literatura de federalismo fiscal que aponta que as cidades maiores teriam melhor desempenho na provisão, por conta da economia de escala. Para isso, apresentam dados do Brasil e da Indonésia que indicam que cidades menores tendem a possuir, proporcionalmente, mais equipamentos públicos básicos como UBSs e escolas. São esses dados, referentes à população das cidades e a densidade de serviços públicos, que serão analisados no presente artigo.
+
+
+As autoras enfatizam que o tamanho da população importa na análise da provisão de serviços públicos locais. Alegam que essa variável geralmente é deixada de lado em pesquisas de política econômica e políticas públicas, sendo apenas utilizada como variável controle. Quando ela é levada em conta, no caso da literatura de federalismo fiscal ou nos estudos sobre processos de descentralização, afirma-se que as cidades maiores tendem a ofertar mais serviços públicos, proporcionalmente.
+	
+	
+Diante desse cenário, os dados analisados no artigo são o ponto de partida para questionar essa leitura predominante, e fornecem relevantes subsídios e evidências de que a população municipal é sim uma variável preditora importante para se avaliar provisão de equipamentos. Apresentados e discutidos esses dados, os autores analisam achados de pesquisas de campo realizadas em duas cidades do interior paulista. A partir de todo esse material, buscam teorizar os motivos para cidades menores terem mais prédios/equipamentos públicos de serviços básicos disponíveis para a população, em comparação com cidades mais populosas.
+	
+	
+A regressão é usada enquanto modelo preditivo e, portanto, não há a pretensão de afirmar que o tamanho da cidade é a causa da densidade de serviços públicos, mas sim de apontar uma correlação entre essas duas variáveis. As análises realizadas pelas autoras, e que serão replicadas a seguir, indicam que quanto menor a cidade, maior a oferta proporcional de determinados bens públicos.
+
+
+
+
+### **METODOLOGIA**
+
+*Dados utilizados*
+
+Os autores do artigo disponibilizaram os códigos e os dados utilizados no desenvolvimento do trabalho no repositório "Harvard Dataverse". Esses arquivos serviram de base para esta replicação.
+
+O trabalho original envolve dados de dois países de renda baixa/média (LMICs na sigla em inglês), foco da pesquisa: Brasil e Indonésia. Devido a multiplicidade de variáveis envolvidas, tanto de variáveis dependentes analisadas separadamente (os serviços públicos), quanto de variáveis controle, optou-se limitar a replicação aos dados do Brasil, para melhor enfoque das análises dos dados e dos modelos.
+
+*Desenho de pesquisa*
+
+Deste modo, o trabalho será dividido em quatro análises principais: a. replicação da análise do quantitativo proporcional de UBSs (unidades básicas de saúde) como variável resposta; b. replicação da análise do quantitativo proporcional de escolas como variável dependente (sendo esses dois primeiros serviços o foco dos autores); c. replicação da análise da proporção da oferta de energia elétrica nos municípios como variável predita; d. utilização do quantitativo de trabalhadores da categoria de serviço social na área de assistência social do município como nova variável dependente, sendo essa última uma extensão do trabalho original. A taxa/percentual de energia elétrica foi escolhida, pois pode ser analisada pela perspectiva de um teste placebo, a ser explicado adiante.
+
+Serão criados os bancos de dados referentes às variáveis elencadas acima, e serão realizadas análises críticas acerca dos pressupostos do modelo ajustado.
+
+*Criando o banco de dados*
+
+
+```{r bibliotecas, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+#ativando as bibliotecas de interesse
+library(tidyverse)
+library(dplyr)
+library(stargazer)
+library(here)
+library(readxl)
+library(easystats)
+library(patchwork)
+library(knitr)
+library(performance)
+library(kableExtra)
+library(xtable)
+library(tinytex)
+```
+
+
+```{r banco de dados Brasil, echo=FALSE, message=FALSE, results='hide', warning=FALSE}
+#atribuindo um nome para o caminho do arquivo
+dados_brasil <- here("dataverse_files/pk_replication_file/_3_data/brazil_data.csv")
+
+#criando banco de dados "br_dados"
+br_dados <- read.csv(dados_brasil)
+#banco original possui 43 variáveis para 5566 observações (municípios)
+
+#filtrando municípios urbanizados
+br_dados <- filter(br_dados, urb ==1)
+
+#transformando população em log
+br_dados <- mutate(br_dados, pop_log = log10(pop))
+```
+
+Primeiramente, foi criado um nome para o caminho do arquivo de dados referentes ao Brasil utilizados no estudo (em formato .csv). A partir desse arquivo foi criado o banco de dados "br_dados", contendo 43 variáveis para as 5566 observações (municípios). Grande parte desse conjunto de variáveis foi utilizada em análises complementares do artigo que não serão abordadas nessa replicação, cujo foco são as regressões lineares desenvolvidas.
+
+Em seguida, foram filtrados os municípios considerados "urbanizados" de acordo com uma categorização binária do IBGE. Realizada a seleção, o banco de dados ficou com 1588 municípios. Como o dataframe original do repositório não apresenta a população dos municípios em escala logarítmica, foi criada uma nova coluna "pop_log".
+
+Com o dataframe "br_dados" pronto para ser utilizado, foram criadas novas bases específicas para cada regressão a ser rodada.
+
+
+```{r banco de dados UBS, echo=FALSE, message=FALSE, results='hide', warning=FALSE}
+#selecionando variáveis de interesse: população (v. independente); proporção de UBSs(v. dependente); variáveis controle utilizadas no paper
+dados_ubs <- br_dados %>%
+  select(pop_log, prop_comm_health, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align)
+
+#omitindo NAs
+dados_ubs <- dados_ubs %>%
+  na.omit()
+```
+
+No caso da UBS como variável resposta principal, foram selecionadas 9 variáveis: população em escala logarítmica (variável preditora), quantidade de UBSs por 1000 habitantes (principal variável resposta), e sete variáveis controles. Essas variáveis controle foram incluídas no estudo com a finalidade de descartar explicações teóricas alternativas, e foram categorizadas pelos autores em quatro grupos: processos de urbanização, diversidade, desenvolvimento econômico e partidarismo.
+
+Deste novo dataframe, nomeado "dados_ubs", foram omitidos os valores não observados (NAs), resultando em 1510 observações para as 9 variáveis. O mesmo foi feito para o banco de dados das escolas per capita e também para a taxa de fornecimento de eletricidade, criando, respectivamente, as bases "dados_esc" e "dados_elec", ambas também com 1510 observações para 9 variáveis. Na tabela com os resultados das regressões, o paper aponta que o número de observações utilizado foi de 1509, portanto uma a menos que a utilizada nesta replicação. Não foi encontrado o motivo para essa diferença.
+
+```{r banco de dados escolas, echo=FALSE, message=FALSE, results='hide', warning=FALSE}
+#selecionando variáveis de interesse: população (v. independente); proporção de escolas(v. dependente); variáveis controle utilizadas no paper
+dados_esc <- br_dados %>%
+  select(pop_log, schools_prop, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align)
+
+#omitindo NAs
+dados_esc <- dados_esc %>%
+  na.omit()
+```
+
+
+```{r dataframe eletricidade, echo=FALSE, message=FALSE, results='hide', warning=FALSE}
+#selecionando variáveis de interesse: população (v. independente); porcentagem de fornecimento de eletricidade(v. dependente); variáveis controle utilizadas no paper
+dados_elec <- br_dados %>%
+  select(pop_log, electr_share_2010, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align)
+
+#omitindo NAs
+dados_elec <- dados_elec %>%
+  na.omit()
+```
+
+
+```{r banco de dados SUAS, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+#atribuindo um nome para o caminho do arquivo
+planilha_suas <- here("microdado_censo_suas_2017/Censo_SUAS_2017/Censo_SUAS_2017_Gestao_Municipal/Censo_SUAS_2017_Gestao_Municipal_divulgacao.xlsx")
+
+#criando banco de dados "data_suast"
+dados_suas <- read_excel(planilha_suas)
+
+#selecionando as três variáveis de interesse: código do IBGE (identificador comum), nome do município e número de assistentes sociais
+dados_suas <- dados_suas %>%
+  select(IBGE, Municipio, assist_soc)
+
+#renomeando o identificador comum para "town_code"
+dados_suas <- dados_suas %>% rename(town_code = IBGE)
+
+#unificando base de dados do paper com base SUAS
+dados_suas <- dados_suas %>% left_join(br_dados, "town_code")
+
+#filtrando municípios urbanizados
+dados_suas <- filter(dados_suas, urb ==1)
+
+#criando variável de assistentes sociais proporcional à população (1000hab)
+dados_suas <- dados_suas %>%
+  mutate(assist_prop = (assist_soc/pop)*1000)
+
+#selecionando variáveis de interesse: população (v. independente); número de assistentes sociais(v. dependente); variáveis controle utilizadas no paper
+dados_suas <- dados_suas %>%
+  select(pop_log, assist_prop, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align)
+
+#omitindo NAs
+dados_suas <- dados_suas %>%
+  na.omit()
+```
+
+Para complementar os achados do artigo, esse trabalho optou por avaliar também a correlação entre serviços de assistência social e o tamanho populacional do município, abordando, portanto, um novo setor da esfera pública. O foco do paper é nas instalações físicas de serviços públicos (UBSs, escolas) devido à teorização de que a inauguração desses equipamentos estaria ligada a reivindicação de crédito político por vereadores, prefeitos e outros agentes políticos. Entretanto, os autores também avaliam a relação entre dados de recursos humanos (professores e médicos per capita) com a população. O SUAS, Sistema Único de Assistência Social, prevê a instalação de centros de referências, os CRASs, cujos dados poderiam ser utilizados neste estudo.
+
+Entretanto, como não é um serviço tão capilarizado quanto escolas e postos de saúde, optou-se por utilizar dados de recursos humanos do SUAS, considerando que seria uma variável que pode refletir melhor a provisão de serviços nessa área. Primeiramente, foi cogitado a utilização do quantitativo de profissionais de ensino superior trabalhando na assistência social, uma vez que é um trabalho fortemente multiprofissional, mas como esse dado é coletado como intervalo de valores, utilizou-se o quantitativo de assistentes sociais por município.
+
+Para a criação do dataframe "dados_suas" foram utilizados informações disponibilizadas no Ministério do Desenvolvimento e Assistência Social, Família e Combate à Fome, mais especificamente do censo SUAS 2017. Foi utilizado esse censo específico, pois além de ser o mais recente disponível no site do ministério, é um ano próximo aos dos outros dados utilizados pelos autores do artigo.
+
+A planilha do ministério foi unificada com o dataframe "dados_br" através do código identificador do IBGE. Após a seleção das variáveis de interesse, a criação de nova variável de assistentes sociais/1000hab, e exclusão dos NAs, obteve-se um banco de dados com 1497 observações, próximo ao utilizado com as outras variáveis.
+
+
+
+
+### **RESULTADOS**
+
+**a. UBS como variável resposta**
+
+```{r regressão UBS, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+#rodando regressão 1: UBSs como v. resposta
+reg_UBS <- lm(prop_comm_health ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, dados_ubs)
+
+stargazer(reg_UBS, type = "latex", style = "apsr", header = FALSE, single.row = TRUE, title = "Relação entre população(log) e UBS per capita", omit.stat = "f")
+```
+
+A tabela 1, acima, aponta que os coeficientes obtidos na regressão linear são os mesmos apresentados pelos autores na tabela ao final do artigo. Primeiramente, isso confirma que os dados utilizados nesta replicação foram os mesmos, e os códigos similares. O coeficiente referente ao preditor população (em log) indica que há, de fato, uma correlação negativa entre população do município e oferta de UBSs (em termos proporcionais). Tudo o mais constante, ou seja, com todas as variáveis controle fixadas, o aumento de uma unidade na população (em log) representa uma dimuição em 0.124 na proporção de UBSs no município. Esse resultado se alinha às interpretações do artigo de que os municípios menores possuem, proporcionalmente, mais serviços públicos à disposição de seus cidadãos.
+
+```{r media UBSs habitante, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+media_UBSs <- round(mean(dados_ubs$prop_comm_health), 2)
+```
+
+
+Para aprofundar e contextualizar a análise do coefieciente, calculamos a média nacional de UBSs por habitante:  `r media_UBSs`/mil habitantes (aproximadamente 1 UBS para cada quatro mil habitantes). Caso o efeito da população sobre a oferta de serviços fosse zero, uma cidade de 10000 habitantes (log 10k = 4) teria aproximadamente 3 UBSs. Já uma cidade de 100000 habitantes (log 100k = 5) teria 27 UBSs, em média. No entanto, o efeito encontrado na regressão é que a proporção diminui quanto maior a população. Portanto, comparar uma cidade de 1000 habitantes (log 1k = 3) com uma cidade de 100000 habitantes (log 100k = 5), uma diferença de 2 log na população, implicaria, em média, a uma diminuição de 0,24 na proporção de UBSs. Ao invés de 27 UBSs da média calculada, a oferta esperada seria reduzida para aproximadamente 20 UBSs.
+
+Foi também gerado um gráfico de dispersão simples com as duas variáveis de interesse para melhor observação da distribuição das variáveis (apêndice 1). Nota-se a tendência de municípios maiores terem menor proporção de UBSs, sendo que as observações vão se concentrando mais em torno do eixo x na parte direita do gráfico. Poucos municípios maiores de 100mil habitantes tem mais de 0,25 UBSs para 1000 habitantes, ou 2,5 UBSs para 10000 habitantes. Uma questão que poderia ser levantada é que cidades menores tendem a ter mais dispersão dos habitantes no território, e por isso constroem mais UBSs, o que não seria necessário em cidades grandes mais adensadas. Essa hipótese foi considerada pelos autores, que levantaram dados de georreferenciamento para testá-la. Entretanto, esse aspecto não será abordado neste trabalho.
+
+Ainda sobre o gráfico de dispersão, percebe-se que na parte esquerda do gráfico, referente aos municípios menos populosos, existem "ranhuras" decrescentes. A base de dados foi analisada com maior atenção para tentar entender a origem desses padrões peculiares, porém não foi levantada nenhuma hipótese consistente. Algo a ser avaliado futuramente é se esses traços referem-se a certas determinações do SUS para implementação de UBSs, o que poderia levar a tais padrões. A partir do segundo terço do gráfico, esses padrões desaparecem, e as observações parecem distribuídas de maneira mais coesa.
+
+*checagem dos pressupostos do modelo linear*
+
+Apresentados os coeficientes obtidos na regressão, é preciso analisar os dados em relação aos pressupostos de um modelo linear. Essa análise ocorre fundamentalmente a partir da observação dos resíduos das observações em relação ao modelo.
+
+Uma das propriedades dos resíduos é que eles devem ter esperança zero condicional aos preditores. No gráfico abaixo, a reta horizontal azul em cima do eixo x indica que a média dos resíduos dessa primeira regressão é zero, contemplando, portanto, esse pressuposto. Entretanto, percebe-se que não há uma homegeneidade na dispersão dos resíduos, havendo um padrão evidente na parte inicial do gráfico, referente aos municípios de menor população. Muitos desses municípios apresentaram resíduos positivos em maior quantidade do que resíduos negativos, que estão mais concentrados em torno da reta azul. Ou seja, há muito mais UBSs nessas cidades (em termos proporcionais) do que prevê o modelo obtido. Trata-se de um indício de que o modelo linear não se ajusta tão bem para essa parte das observações.
+
+No meio do gráfico, por sua vez, é possível dizer que não há um padrão sistemático nos resíduos, uma vez que eles estão bem distribuídos em torno da reta. Nesse trecho é possível afirmar que o modelo linear funciona bem, ou seja, consegue fazer uma previsão com menos erros dos dados observados. Na parte final do gráfico, há poucas observações (provavelmente São Paulo e Rio de Janeiro, seguidas de outras capitais), também com maior densidade de UBSs do que prevê o modelo, mas não com uma discrepância como a que se percebe no início do gráfico.
+
+```{r residuos contra o preditor UBS, echo=FALSE, warning=FALSE, message=FALSE}
+residuos_UBS1 <- data.frame(residuos = residuals(reg_UBS), preditor = dados_ubs$pop_log)
+
+residuos_UBS1 %>%
+  ggplot(aes(x=preditor, y = residuos)) + geom_point() + geom_smooth(method="lm", se=F) + labs(title = "Gráfico 1: resíduos contra o preditor")
+```
+
+Outra análise acerca do modelo de regressão linear refere-se à suposição de homocedasticidade. A homocedasticade prevê que os resíduos devem ter variância constante em relação ao preditor. No gráfico 2 abaixo, plotado com o valor absoluto dos resíduos (em vez do quadrado) o primeiro aspecto a ser realçado é que a reta azul não é horizontal, o que já acusa heterocedasticidade. Além disso, a distribuição dos resíduos também deixa patente que a variação é muito maior na parte inicial do gráfico. O meio do gráfico tem um padrão mais coeso de variâncias. A violação desse pressuposto prejudica a inferência estatística relativas aos dados da regressão.
+
+```{r homocedasticidade UBS, echo=FALSE, message=FALSE, warning=FALSE}
+residuos_UBS2 <- data.frame(residuos_abs = abs(residuals(reg_UBS)), preditor = dados_ubs$pop_log)
+
+residuos_UBS2 %>%
+  ggplot(aes(x=preditor, y = residuos_abs)) + geom_point() + geom_smooth(method="lm", se=F) + labs(title = "Gráfico 2: homocedasticidade x heterocedasticidade")
+```
+
+O gráfico 3 abaixo refere-se à verificação do pressuposto da normalidade dos resíduos. Observado o histograma dos resíduos, é possível perceber uma distribuição que se assemelha à normal. No entanto, nota-se um alongamento assimétrico na cauda direita, evidenciando comentário sobre o primeiro pressuposto de que há muitos municípios com mais UBSs do que prevê o modelo. Por conta dessa observação, não é possível dizer que o pressuposto foi atendido.
+
+```{r normalidade dos resíduos UBS, echo=FALSE, message=FALSE, warning=FALSE}
+residuos_UBS3 <- data.frame(residuos = residuals(reg_UBS), preditor = dados_ubs$pop_log, 
+                 density_points = rnorm(length(residuals(reg_UBS)) , 0, sd(residuals(reg_UBS))))
+
+residuos_UBS3 %>%
+  ggplot(aes(residuos)) + geom_histogram(aes(y=..density..)) + geom_density(aes(density_points), colour = "blue") + labs(title = "Gráfico 3: normalidade dos resíduos")
+```
+
+O gráfico QQplot (quantile-quantile plot), abaixo, também é usado para avaliar se os resíduos do modelo seguem uma distribuição normal. A linha reta no centro do gráfico representa a distribuição teórica normal esperada. Se os pontos estiverem próximos ou alinhados com essa linha, os resíduos podem ser considerados aproximadamente normais. Os pontos representam os resíduos do seu modelo, comparados com os quantis esperados da distribuição normal.
+
+```{r qqplot, echo=FALSE, warning=FALSE, message=FALSE}
+qqnorm(residuals(reg_UBS))
+qqline(residuals(reg_UBS))
+```
+
+Na região central (próxima de 0 no eixo dos quantis teóricos), os pontos estão relativamente alinhados com a linha reta, indicando que os resíduos nesta faixa central seguem aproximadamente a distribuição normal. Porém, nas extremidades (caudas), especialmente à direita, há um desvio enorme em relação à linha de referência. Isso sugere a presença de resíduos extremos (outliers) ou uma cauda longa à direita, ou seja, uma distribuição asimétrica dos resíduos (viés positivo).
+
+**b. escolas como variável resposta**
+
+
+```{r regressão escolas, echo=FALSE, results='asis'}
+#rodando regressão 2: escolas como v. resposta
+reg_esc <- lm(schools_prop ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, dados_esc)
+
+stargazer(reg_esc, type = "latex", header = FALSE, style = "apsr", title = "Relação entre população(log) e escolas per capita", omit.stat = "f", single.row = TRUE)
+```
+
+A tabela 2 confirma os coeficientes encontrados pelos autores do artigo quando a variável dependente são as escolas per capita. Assim como nas UBSs, há uma correlação negativa entre densidade de escolas e população, o que sustenta o argumento central do paper. Todos os outros fatores constantes, a cada uma unidade de aumento na população municipal (em escala logarítmica), espera-se um decrescimento de 0.35 na proporção de escolas. Os coefiecientes padronizados das UBSs e escolas serão discutidos e comparados a frente.
+
+Também foi criado um gráfico de dispersão para a variável escola (apêndice 2). Percebe-se padrão similar ao das UBSs, com uma dispersão maior na parte esquerda. Os padrões de "ranhuras" também aparecem para as escolas, mas de maneira menos significativa em comparação com os postos de saúde.
+
+*avaliação dos pressupostos*
+
+A checagem dos pressupostos para essa variável será realizada a partir do conjunto de gráficos gerado pela biblioteca "easystats" (LÜDECKE et al., 2022), apresentado no apêndice 3.
+
+O gráfico da linearidade tem uma linha de referência reta e horizontal, o que indica que o pressuposto foi contemplado. Entretanto, na parte final do gráfico, à direita, há alguns pontos que se afastam da reta, indicando que o modelo não funciona bem para certos municípios com número elevado de escolas per capita.
+
+O gráfico "homegeneidade da variância" aponta que o pressuposto da homocedasticidade foi violado, uma vez que a linha de referência é curva, e há um comportamento destoante das variâncias na parte final do gráfico, à direita, com resíduos positivos.
+
+O gráfico de normalidade dos resíduos sugere que esse pressuposto foi atendido, pois os pontos acompanham a linha de referência, com excessão de alguns valores extremos à direita.
+
+
+*comparando os coeficientes padronizados da "reg_ubs" e "reg_esc"*
+
+```{r coeficientes padronizados, echo=FALSE, warning=FALSE, message=FALSE}
+#padronizando os coeficientes
+
+br_pad <- br_dados %>%
+  select(pop_log, prop_comm_health, schools_prop, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align) %>%
+  na.omit()
+
+
+br_pad <- br_pad %>%
+  mutate(pop_log = (pop_log - mean(pop_log))/sd(pop_log),
+   prop_comm_health = (prop_comm_health - mean(prop_comm_health))/sd(prop_comm_health),
+          pop_growth = (pop_growth - mean(pop_growth))/sd(pop_growth),
+          elec_index = (elec_index - mean(elec_index))/sd(elec_index),
+          density = (density - mean(density))/sd(density),
+          div_index = (div_index - mean(div_index))/sd(div_index),
+          avg_salary_mo_2010 = (avg_salary_mo_2010 - mean(avg_salary_mo_2010))/sd(avg_salary_mo_2010),
+          ill_rate_2010 = (ill_rate_2010 - mean(ill_rate_2010))/sd(ill_rate_2010),
+   schools_prop = (schools_prop - mean(schools_prop))/sd(schools_prop)
+   )
+```
+
+
+```{r regressão UBS padronizado, echo=FALSE}
+#rodando regressão 1.2: UBSs padronizado
+regUBS_pad <- lm(prop_comm_health ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, br_pad)
+
+#filtrando apenas o coeficiente padronizado para UBS
+coef_ubs_pad <- round(coef(regUBS_pad)["pop_log"], 2)
+```
+
+```{r regressão escolas padronizado, echo=FALSE}
+#rodando regressão 2.2: escolas padronizado
+regESC_pad <- lm(schools_prop ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, br_pad)
+
+#filtrando apenas o coeficiente padronizado para escola
+coef_esc_pad <- round(coef(regESC_pad)["pop_log"], 2)
+```
+
+
+```{r tabela dos coeficientes padronizados, echo=FALSE}
+#criando tabela para apresentar coeficientes padronizados
+tabela_coef_pad <- tibble(
+  var_resposta = c("UBSs_por_1000", "escolas_por_1000"),
+  coeficiente_pad = c(coef_ubs_pad, coef_esc_pad)
+  )
+
+#imprimir a tabela personalizada
+kable(tabela_coef_pad, format = "latex", caption = "Coeficientes padronizados")
+```
+
+Os coeficientes apresentados na tabela 3, acima, são resultado da padronização dos dados utilizados nas regressões. Foram encontrados os mesmos coeficientes apresentados na figura 3 do artigo: `r coef_ubs_pad` para as UBSs; `r coef_esc_pad` para as escolas. Com a padronização, é possível comparar esses dois resultados. Em ambos os setores há uma correlação negativa em relação à população, em consonância com o debate realizado pelos autores. Os dados indicam, ainda, que a densidade dos serviços básicos de saúde tende a diminuir com mais intensidade conforme aumenta a população dos municípios, em comparação com as escolas.
+
+Há, portanto, uma diferença no padrão de provimento desses dois setores da esfera pública, o que poderia suscitar uma linha específica de pesquisa: por qual razão as escolas tendem a ser mais bem distribuídas (em termos populacionais, e não territoriais) do que as UBSs? Na realidade, talvez seja um reflexo do próposito e da utilização desses serviços. Uma UBS recebe muito mais usuários do que uma única escola, o que demandaria maior oferecimento de escolas, fato que responderia a questão acima.
+
+
+**c. percentual de provisão de energia elétrica como variável resposta**
+
+```{r regressão eletricidade, echo=FALSE, results='asis'}
+#rodando regressão 3: percentual de eletricidade como v. resposta
+reg_elec <- lm(electr_share_2010 ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, dados_elec)
+
+stargazer(reg_elec, type = "latex", style = "apsr", title = "Relação entre população(log) e provisão de energia elétrica", omit.stat = "f", header = FALSE, single.row = TRUE)
+```
+
+Os coeficientes da regressão linear, apresentados acima, são os mesmos daqueles obtidos no artigo original. O coeficiente indica que o tamanho populacional afeta de maneira quase irrisória a provisão de energia elétrica nos municípios. Esse achado está em consonância com a hipótese dos autores de que, por se tratar de bem público fornecido pelo governo estadual, os fenômenos políticos relacionados ao tamanho da população não atuam nessa provisão em particular. Pontua-se que os autores investigaram os efeitos das dinâmicas políticas locais sobre a provisão de serviços, e a oferta de serviços estaduais estaria fora dessa lógica.
+
+O uso dessa variável no estudo pode ser considerado um teste placebo. Testes placebo são ferramentas úteis para avaliar a plausibilidade das suposições subjacentes a um desenho de pesquisa. Servem para checar um possível desvio dessas suposições (EGGERS; TUÑÓN; DAFOE, 2023). No caso em tela, como os pesquisadores levantam a hipótese de que a provisão de serviços públicos está conectada com dinâmicas políticas locais (e não são apenas reflexo de uma economia de escala), o tamanho populacional dos municípios não deveria ter efeito sobre esse serviço, uma vez que é de responsabilidade de outro ente federativo.
+
+Foi gerado um gráfico de dispersão para essa variável (apêndice 4). O gráfico evidencia o que os autores mencionam no artigo: em muitos municípios o fornecimento de energia elétrica já é universalizado, sobretudo em cidades urbanizadas, que é a amostra do estudo. Há dois padrões diferentes quando se compara as duas metades do gráfico. Na primeira metade, há maior dispersão das observações, indicando que no grupo dos municípios menores há maior número de cidades que não alcançaram a universalização desse serviço. Já na metade direita do gráfico, a grande maioria dos pontos se concentra próximo ao eixo do 100%.
+
+Nota-se no gráfico que a reta ajustada é levemente positiva. Entretanto, o coeficiente, mesmo que muito pequeno, é negativo, o que indica a influência das variáveis controle.
+
+
+*avaliação dos pressupostos*
+
+A avaliação dos pressupostos da regressão da variável resposta eletricidade será realizada através dos gráficos gerados pelo pacote "easystats" (apêndice 5).
+
+O gráfico atinente à normalidade dos resíduos indica que esse pressuposto foi atendido, apesar de dados destoantes na parte esquerda do gráfico, que fogem à reta de referência. Esse aspecto está em consonância com o que foi discutido acerca do gráfico de dispersão, uma vez que há uma quantidade razoável de municípios que escapam ao modelo por não terem alcançado a universalização da eletrificação, aumentando os resíduos negativos.
+
+O gráfico "homogeneidade da variância" aponta que o pressuposto da homocedasticidade foi violado. A linha de referência é curva, e as variâncias apresentam um padrão destoante no meio do gráfico.
+
+Em relação à linearidade, a linha de referência é reta e horizontal. Esse pressuposto foi atendido, mesmo havendo um padrão destoante das observações no meio do gráfico, o que indica que o modelo não se ajusta bem a certos municípios, aqueles ainda distantes de alcançar valores próximos a 100% da eletrificação.
+
+
+**d. assistentes sociais como variável resposta**
+
+```{r regressão SUAS, echo=FALSE, results='asis'}
+#rodando regressão 4: número de assistentes sociais como v. resposta
+reg_suas <- lm(assist_prop ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, dados_suas)
+
+stargazer(reg_suas, type = "latex", style = "apsr", title = "Relação entre população(log) e profissionais SUAS per capita", omit.stat = "f", header = FALSE, single.row = TRUE)
+```
+
+Essa terceira regressão utilizou uma nova variável para avaliar as suposições do artigo. Assim como a regressão referente à provisão de UBSs, observa-se uma correlação negativa entre o tamanho populacional dos municípios e o número de assistentes sociais per capita. Tudo o mais constante, a cada aumento de uma unidade da população em escala logarítmica, há uma diminuição de 0.193 no quantitativo de assistentes sociais na equipe municipal para 1000 habitantes.
+
+
+
+```{r padronizando coef SUAS, echo=FALSE, warning=FALSE, message=FALSE}
+#padronizando os coeficientes
+
+suas_pad <- dados_suas %>%
+  select(pop_log, assist_prop, pop_growth, density, div_index, avg_salary_mo_2010, ill_rate_2010, elec_index, align) %>%
+  na.omit()
+
+
+suas_pad <- suas_pad %>%
+  mutate(pop_log = (pop_log - mean(pop_log))/sd(pop_log),
+   assist_prop = (assist_prop - mean(assist_prop))/sd(assist_prop),
+          pop_growth = (pop_growth - mean(pop_growth))/sd(pop_growth),
+          elec_index = (elec_index - mean(elec_index))/sd(elec_index),
+          density = (density - mean(density))/sd(density),
+          div_index = (div_index - mean(div_index))/sd(div_index),
+          avg_salary_mo_2010 = (avg_salary_mo_2010 - mean(avg_salary_mo_2010))/sd(avg_salary_mo_2010),
+          ill_rate_2010 = (ill_rate_2010 - mean(ill_rate_2010))/sd(ill_rate_2010)
+   )
+```
+
+
+
+```{r regressão SUAS padronizado, echo=FALSE, warning=FALSE, message=FALSE}
+#rodando regressão 4.2: SUAS padronizado
+regSUAS_pad <- lm(assist_prop ~ pop_log + pop_growth + density + div_index + avg_salary_mo_2010 + ill_rate_2010 + elec_index + align, suas_pad)
+
+#filtrando apenas o coeficiente padronizado para assistente social
+coef_suas_pad <- round(coef(regSUAS_pad)["pop_log"], 2)
+
+#criando tabela para apresentar coeficiente padronizado
+tabela_suas_pad <- tibble(
+  var_resposta = c("assist_social_por_1000"),
+  Coeficiente_pad = c(coef_suas_pad)
+  )
+
+#imprimir a tabela personalizada
+kable(tabela_suas_pad, format = "latex", caption = "Coeficiente padronizado assist. social/1000hab")
+```
+
+A tabela 6, acima, apresenta o coeficiente padronizado do preditor população(log): `r coef_suas_pad`. Em termos absolutos, esse coeficiente é maior do aqueles encontrados pelos autores para as variáveis médico per capita e professores per capita, ambas próximas de 0.3. Essa diferença indica que o tamanho dos municípios impacta mais a disponibilidade de recursos humanos no setor da assistência social, do que nos setores da educação e da saúde. Uma hipótese para tal achado, é de que se trata de um sistema novo, o que dificultaria sua expansão e capilaridade em grandes cidades, enquanto que cidades menores teriam fundos de outras esferas que permitiram uma estruturação mais rápida do SUAS.
+
+*testagem dos pressupostos*
+
+A checagem do modelo linear para a regressão com a variável assistentes sociais será realizada com o mesmo passo a passo da checagem com a variável UBS.
+
+```{r residuos contra o preditor SUAS, echo=FALSE, warning=FALSE, message=FALSE}
+residuos_SUAS1 <- data.frame(residuos = residuals(reg_suas), preditor = dados_suas$pop_log)
+
+residuos_SUAS1 %>%
+  ggplot(aes(x=preditor, y = residuos)) + geom_point() + geom_smooth(method="lm", se=F) + labs(title = "Gráfico 4: resíduos contra o preditor")
+```
+
+O gráfico 4 evidencia que o pressuposto da linearidade foi contemplado: a linha de referência é horizontal e segue o eixo x. Entretando, a dispersão dos resíduos mostra diferentes padrões de distribuição de acordo com o valor do preditor. A primeira parte do gráfico, dos municípios menores, tem muitos valores distantes da reta de referência, com resíduos positivos. É o mesmo padrão encontrado nos outros serviços públicos. Indica que a variância desse subgrupo de cidades não se encaixa tão bem a esse modelo linear, pois muitas observações se distanciam dos valores esperados. Na parte central do gráfico, os valores tendem a se concentrar em torno da linha de referência, o que indica que para esse grupo de cidades o modelo linear funciona bem. 
+
+```{r homocedasticidade SUAS, echo=FALSE, message=FALSE, warning=FALSE}
+residuos_SUAS2 <- data.frame(residuos_abs = abs(residuals(reg_suas)), preditor = dados_suas$pop_log)
+
+residuos_SUAS2 %>%
+  ggplot(aes(x=preditor, y = residuos_abs)) + geom_point() + geom_smooth(method="lm", se=F) + labs(title = "Gráfico 5: homocedasticidade x heterocedasticidade")
+```
+
+O gráfico 5 indica violação do pressuposto de homocedasticidade das variâncias. A reta de referência não é horizontal, e não há uma coesão das variâncias em torno da reta, em quase nenhum trecho do eixo dos preditores. Novamente, salta à vista o padrão destoante no início do gráfico, com vários municípios menos populosos cuja variância dos resíduos é muito alta.
+
+
+```{r normalidade dos resíduos SUAS, echo=FALSE, message=FALSE, warning=FALSE}
+residuos_SUAS3 <- data.frame(residuos = residuals(reg_suas), preditor = dados_suas$pop_log, 
+                 density_points = rnorm(length(residuals(reg_suas)) , 0, sd(residuals(reg_suas))))
+
+residuos_SUAS3 %>%
+  ggplot(aes(residuos)) + geom_histogram(aes(y=..density..)) + geom_density(aes(density_points), colour = "blue") + labs(title = "Gráfico 6: normalidade dos resíduos")
+```
+
+Percebe-se uma normalidade na distribuição dos resíduos, mas também se nota uma cauda para a direita, dos resíduos positivos, inclusive com a presença de alguns outliers. Apesar de poucos casos, os extremos nesse lado da curva indicam a presença de municípios com muito mais assistenciais sociais per capita do que prevê o modelo linear ajustado. 
+
+### **CONSIDERAÇÕES FINAIS**
+
+Para além das questões didáticas próprias a este trabalho e à disciplina de metodologia quantitativa da qual ele é avaliação final, a replicação apresentada acima foi exitosa em alcançar os mesmos parâmetros calculados no artigo original, tanto para as duas variáveis centrais (UBSs e escolas) quanto para uma variável que pode ser analisada enquanto teste placebo (eletricidade). Foi possível também ampliar o trabalho original a partir da análise de uma nova variável que, mesmo não sendo uma estrutura física, reflete oferta de serviços públicos: quantitativo per capita de assistentes sociais trabalhando no Sistema Único de Assistência Social. Também foi exitosa na realização da verificação dos pressupostos do modelo ajustado, pois permitiu ampliar a discussão sobre os dados trabalhados, ajudando a complexificar a análise original.
+
+Em todas as regressões, o coeficiente calculado para a população como variável preditora foi negativo, confirmando a tese principal dos autores: o tamanho das cidades importa para avaliar a oferta de serviços públicos; cidades menores tendem a oferecer, proporcionalmente, mais serviços públicos para seus munícipes. A comparação dos coeficientes padronizados das variáveis UBS e escola indica, porém, que esses setores se comportam de maneira diferente, sendo que no caso da saúde, o tamanho da cidade tende a impactar mais a proporção de postos de saúde, o que pode ser um reflexo de questões inerentes à própria política pública.
+
+A análise do fornecimento de energia elétrica foi importante para verificar o teste placebo em face da teoria dos autores. O acréscimo de uma nova variável (profissionais do SUAS) pode suscitar novas pesquisas setoriais e de campo para compreender se ocorrem dinâmicas próprias para esse setor do serviço público.
+
+A análise do modelo linear nas quatro variáveis abordadas leva a algumas reflexões pertinentes sobre os dados trabalhados no estudo. O ajuste do modelo linear para tratar tais dados mostrou-se útil para evidenciar o cerne da pesquisa: há uma correlação negativa entre população e oferta de serviços públicos em termos proporcionais. A partir desse achado, foi possível aprofundar o tema da pesquisa, e também seguir com os estudos de campo que geraram o paper. Entretanto, a violação de alguns pressupostos, discutido acima, aponta que para certos agrupamentos de dados o modelo linear talvez não seja o mais adequado. Em todas as variáveis, foi apontado que em municípios menores a distribuição das observações é mais dispersa, e ficam distantes aos valores esperados na reta de regressão. Portanto, para esses municípios, muita informação se perde em relação ao modelo linear.
+
+Nos gráficos para análise do pressuposto de linearidade, foi notado certo padrão peculiar também no agrupamento de municípios menores. As observações se configuram em traços curvos e descendentes, nomeados aqui de "ranhuras". Não foi possível teorizar sobre tal padrão apenas com a observação dos dados, mas podem ser reflexo de algum aspecto das políticas públicas analisadas, e/ou da maneira como os dados são coletados/configurados. Trata-se, portanto, de fenômeno a ser considerado em pesquisas futuras.
+
+
+
+### **REFERÊNCIAS**
+
+EGGERS, A. C.; TUÑÓN, G.; DAFOE, A. Placebo Tests for Causal Inference. American Journal of Political Science, 2023.
+
+HLAVAC; MAREK. stargazer: Well-Formatted Regression and Summary Statistics Tables.
+R package version 5.2.3. 2022 https://CRAN.R-project.org/package=stargazer
+
+LÜDECKE, D.; PATIL, I.; BEN-SACHAR, M. S.; WIERNIK, B. M.; BACHER, E.; THÉRIAULT, R.; MAKOWSKI, D. Easystats: Framework for Easy Statistical Modeling, Visualization, and Reporting. CRAN, 2022. Available from https://easystats.github.io/easystats/
+ 
+POST, A. E.; KUIPERS, N. City Size and Public Service Access: Evidence from Brazil and Indonesia. Perspectives on Politics, vol. 21, n. 3, p. 811-830, 2023.
+
+
+### **FONTE DOS DADOS**
+
+MINISTÉRIO DO DESENVOLVIMENTO E ASSISTÊNCIA SOCIAL, FAMÍLIA E COMBATE À FOME. Censo SUAS 2017, microdados/assistência social, 2017. Disponível em: https://www.gov.br/mds/pt-br/noticias-e-conteudos/dados-e-ferramentas-informacionais/microdados (acesso em 07 de janeiro de 2024)
+
+POST, A.; KUIPERS, P. Replication Files for "City Size and Public Service Access: Evidence from Brazil and Indonesia.". Harvard Dataverse, 2023. Disponível em: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/KGTRVF (acesso em 07 de janeiro de 2024)
+
+
+
+### **APÊNDICES**
+
+*Apêndice 1: gráfico de dispersão população(log) x UBS per capita*
+
+```{r grafico UBS, echo=FALSE, message=FALSE, warning=FALSE}
+grafico_UBS <- ggplot(dados_ubs, aes(x = pop_log, y = prop_comm_health)) +
+ geom_point() +
+  labs(title = "Scatterplot pop x densidade UBS", 
+       x = "pop", 
+       y = "densidade UBS")
+
+print(grafico_UBS + geom_smooth(method = "lm", se = FALSE, color = "blue"))
+```
+
+*Apêndice 2: gráfico de dispersão população(log) x UBS per capita*
+
+```{r grafico escolas, echo=FALSE, message=FALSE, warning=FALSE}
+grafico_esc <- ggplot(dados_esc, aes(x = pop_log, y = schools_prop)) +
+ geom_point() +
+  labs(title = "Scatterplot pop x densidade escolas", 
+       x = "pop", 
+       y = "densidade escolas")
+
+print(grafico_esc + geom_smooth(method = "lm", se = FALSE, color = "blue"))
+```
+
+
+*Apêndice 3: gráficos para checagem do modelo linear - escolas como v. resposta*
+
+```{r checagem modelo escolas, echo=FALSE}
+check_model(reg_esc)
+```
+
+*Apêndice 4: gráfico de dispersão população(log) x provisão eletricidade*
+
+```{r grafico eletricidade, echo=FALSE, message=FALSE, warning=FALSE}
+grafico_elec <- ggplot(dados_elec, aes(x = pop_log, y = electr_share_2010)) +
+ geom_point() +
+  labs(title = "Scatterplot pop x eletricidade", 
+       x = "pop", 
+       y = "eletricidade")
+
+print(grafico_elec + geom_smooth(method = "lm", se = FALSE, color = "blue"))
+```
+
+
+
+*Apêndice 5: gráficos para checagem do modelo linear - eletricidade como v. resposta*
+
+```{r checagem modelo eletricidade, echo=FALSE}
+check_model(reg_elec)
+```
+
+
+*Apêndice 6: gráfico de dispersão população(log) x assistente social per capita*
+
+```{r gráfico SUAS, echo=FALSE, message=FALSE, warning=FALSE}
+grafico_suas <- ggplot(dados_suas, aes(x = pop_log, y = assist_prop)) +
+ geom_point() +
+  labs(title = "Scatterplot pop x assist soc per capita", 
+       x = "pop", 
+       y = "assist per capita")
+
+print(grafico_suas + geom_smooth(method = "lm", se = FALSE, color = "blue"))
+```
+
